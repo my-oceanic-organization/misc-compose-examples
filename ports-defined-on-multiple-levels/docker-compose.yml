@@ -1,0 +1,38 @@
+services:
+  # 1. EXPOSE in Dockerfile, no override in compose
+  case1-dockerfile-expose-only:
+    build:
+      context: ./with-expose
+
+  # 2. EXPOSE in Dockerfile, compose adds `expose` (no published port mapping)
+  case2-dockerfile-expose-compose-expose:
+    build:
+      context: ./with-expose
+    expose:
+      - "1234"
+
+  # 3. EXPOSE in Dockerfile, compose publishes with `ports` mapping (host:container)
+  case3-dockerfile-expose-compose-ports:
+    build:
+      context: ./with-expose
+    ports:
+      - "2345:3456"
+
+  # 4. No EXPOSE in Dockerfile, no override in compose
+  case4-no-expose-no-override:
+    build:
+      context: ./without-expose
+
+  # 5. No EXPOSE in Dockerfile, compose adds `expose` (no published port mapping)
+  case5-no-expose-compose-expose:
+    build:
+      context: ./without-expose
+    expose:
+      - "4567"
+
+  # 6. No EXPOSE in Dockerfile, compose publishes with `ports` mapping (host:container)
+  case6-no-expose-compose-ports:
+    build:
+      context: ./without-expose
+    ports:
+      - "5678:6789"
