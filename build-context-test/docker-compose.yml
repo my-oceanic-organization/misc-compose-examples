@@ -1,0 +1,13 @@
+services:
+  hello-local-context:
+    build:
+      context: ./apps/hello
+    ports:
+      - "8081:8080"
+
+  hello-root-context:
+    build:
+      context: ./
+      dockerfile: ./dockerfiles/Dockerfile.root
+    ports:
+      - "8082:8080"
