@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres-simple-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: "demo"
+      POSTGRES_USER: "demo"
+      POSTGRES_PASSWORD: "demo"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app:
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: postgres-simple-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      # The whole point of this demo: open http://localhost:8000 in a browser
+      # and behold a 1989-vintage HTML page rendered from Postgres rows.
+      - "8000:8000"
+    environment:
+      POSTGRES_HOST: "postgres"
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: "demo"
+      POSTGRES_USER: "demo"
+      POSTGRES_PASSWORD: "demo"
+      HTTP_PORT: "8000"
+    restart: on-failure
