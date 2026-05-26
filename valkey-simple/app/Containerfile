@@ -1,0 +1,15 @@
+FROM python:3.12-alpine
+
+RUN apk add --no-cache tini
+
+WORKDIR /app
+
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY app.py ./
+
+EXPOSE 6379
+
+ENTRYPOINT ["tini", "--"]
+CMD ["python", "-u", "app.py"]
