@@ -36,8 +36,11 @@ services:
     depends_on:
       opensearch:
         condition: service_healthy
+    ports:
+      - "8000:8000"
     environment:
       OPENSEARCH_URL: "http://opensearch:9200"
       OPENSEARCH_INDEX: "demo"
       SEARCH_INTERVAL_SECONDS: "3"
+      HTTP_PORT: "8000"
     restart: on-failure

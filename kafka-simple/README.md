@@ -3,9 +3,14 @@
 Minimal compose example: an `apache/kafka` broker (KRaft, single-node) plus two
 tiny Python apps built from in-repo `Containerfile`s — a **producer** that
 publishes a JSON message every couple of seconds and a **consumer** that
-subscribes to the same topic and prints whatever it receives. The point is to
-have a single `docker compose up` that shows Kafka working end-to-end with the
-fewest moving parts possible.
+subscribes to the same topic. The consumer also exposes a tiny built-in web UI
+at <http://localhost:8000> with the last N messages, per-partition counters,
+and the connection config. The UI exists so the demo can be shown end-to-end
+through a single HTTP route (handy on PaaS platforms) without anyone having to
+`docker logs` or shell in.
+
+The point is to have a single `docker compose up` that shows Kafka working
+end-to-end with the fewest moving parts possible.
 
 ## Layout
 
@@ -19,7 +24,8 @@ kafka-simple/
 │   └── requirements.txt
 └── consumer/
     ├── Containerfile
-    ├── consumer.py
+    ├── consumer.py        # consumes + serves a stdlib HTTP UI
+    ├── index.html         # single-page UI for the demo
     └── requirements.txt
 ```
 
@@ -32,7 +38,9 @@ podman compose up --build
 # or: docker compose up --build
 ```
 
-You should see interleaved output like:
+Then open <http://localhost:8000> for the consumer's web UI (counts, the last
+N messages, per-partition stats). You should also see interleaved log output
+like:
 
 ```
 kafka-simple-producer  | [boot] producer bootstrap=kafka:19092 topic=demo interval=2.0s
@@ -84,6 +92,7 @@ Consumer env vars (defaults shown):
 | `KAFKA_TOPIC`             | `demo`        |
 | `KAFKA_GROUP_ID`          | `demo-group`  |
 | `KAFKA_AUTO_OFFSET_RESET` | `earliest`    |
+| `HTTP_PORT`               | `8000`        |
 
 ## Notes
 

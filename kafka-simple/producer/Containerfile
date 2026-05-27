@@ -9,7 +9,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY producer.py ./
 
-EXPOSE 9092
-
 ENTRYPOINT ["tini", "--"]
 CMD ["python", "-u", "producer.py"]

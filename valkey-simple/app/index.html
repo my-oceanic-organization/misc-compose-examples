@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>valkey-simple · cache-aside demo</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1e2330;
+    --border: #2a3142;
+    --fg: #e6e8ee;
+    --muted: #8b93a7;
+    --accent: #7cc4ff;
+    --hit: #4ade80;
+    --miss: #f59e0b;
+    --err: #f87171;
+    --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--fg); margin: 0; }
+  body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; padding: 24px; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--muted);
+       text-transform: uppercase; letter-spacing: 0.08em; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .col-3 { grid-column: span 3; }
+  .col-4 { grid-column: span 4; }
+  .col-6 { grid-column: span 6; }
+  .col-8 { grid-column: span 8; }
+  .col-12 { grid-column: span 12; }
+  @media (max-width: 900px) {
+    .col-3, .col-4, .col-6, .col-8 { grid-column: span 12; }
+  }
+  .stat { font-family: var(--mono); font-size: 40px; line-height: 1; font-weight: 600; }
+  .stat-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .tag-hit  { color: var(--hit); }
+  .tag-miss { color: var(--miss); }
+  .tag-err  { color: var(--err); }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--panel-2);
+          color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .pill strong { color: var(--fg); }
+  button { background: var(--panel-2); color: var(--fg); border: 1px solid var(--border);
+           padding: 8px 14px; border-radius: 8px; font: inherit; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button:active { transform: translateY(1px); }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--mono); }
+  .err-banner { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.35);
+                color: var(--err); padding: 10px 14px; border-radius: 10px; margin-bottom: 16px;
+                font-family: var(--mono); font-size: 13px; }
+  .err-banner:empty { display: none; }
+</style>
+</head>
+<body>
+  <h1>valkey-simple <span class="muted">· cache-aside demo</span></h1>
+  <div class="sub">
+    A background loop picks a random key every <span id="cfg-tick" class="mono">…</span>s and
+    looks it up via Valkey. A miss runs a deliberately slow function
+    (<span id="cfg-slow" class="mono">…</span>s) and stores the result with TTL
+    <span id="cfg-ttl" class="mono">…</span>s.
+  </div>
+
+  <div id="err" class="err-banner"></div>
+
+  <div class="grid">
+    <div class="card col-3">
+      <div class="stat-label">Hits</div>
+      <div class="stat tag-hit" id="hits">0</div>
+    </div>
+    <div class="card col-3">
+      <div class="stat-label">Misses</div>
+      <div class="stat tag-miss" id="misses">0</div>
+    </div>
+    <div class="card col-3">
+      <div class="stat-label">Hit rate</div>
+      <div class="stat" id="hitrate">0.0%</div>
+    </div>
+    <div class="card col-3">
+      <div class="stat-label">Total lookups</div>
+      <div class="stat" id="total">0</div>
+    </div>
+
+    <div class="card col-6">
+      <h2>Recent lookups</h2>
+      <table>
+        <thead>
+          <tr><th>when</th><th>kind</th><th>key</th><th>value</th><th style="text-align:right">ms</th></tr>
+        </thead>
+        <tbody id="events"></tbody>
+      </table>
+    </div>
+
+    <div class="card col-6">
+      <div class="row" style="justify-content: space-between; margin-bottom: 12px;">
+        <h2 style="margin: 0;">Cached keys (live from Valkey)</h2>
+        <button id="flush">FLUSHALL demo:hash:*</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>key</th><th>value</th><th style="text-align:right">ttl (s)</th></tr>
+        </thead>
+        <tbody id="cache"></tbody>
+      </table>
+      <div id="cache-empty" class="muted" style="margin-top: 8px;">No cached keys yet.</div>
+    </div>
+
+    <div class="card col-12">
+      <h2>Connection</h2>
+      <div class="row">
+        <span class="pill">host <strong id="cfg-host">…</strong></span>
+        <span class="pill">port <strong id="cfg-port">…</strong></span>
+        <span class="pill">ttl <strong id="cfg-ttl2">…</strong>s</span>
+        <span class="pill">tick <strong id="cfg-tick2">…</strong>s</span>
+        <span class="pill">slow_compute <strong id="cfg-slow2">…</strong>s</span>
+        <span class="pill">keys <strong id="cfg-keys">…</strong></span>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function fmtPct(x) { return (x * 100).toFixed(1) + "%"; }
+
+function renderEvents(rows) {
+  const tbody = $("events");
+  tbody.innerHTML = "";
+  for (const r of rows.slice(0, 12)) {
+    const tr = document.createElement("tr");
+    const t = r.ts.split("T")[1]?.replace("Z", "") ?? r.ts;
+    tr.innerHTML = `
+      <td class="muted">${t}</td>
+      <td class="${r.kind === "HIT" ? "tag-hit" : "tag-miss"}">${r.kind}</td>
+      <td>${r.key}</td>
+      <td>${r.value ?? ""}</td>
+      <td style="text-align:right">${r.elapsed_ms.toFixed(2)}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderCache(rows) {
+  const tbody = $("cache");
+  tbody.innerHTML = "";
+  $("cache-empty").style.display = rows.length === 0 ? "" : "none";
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.key}</td>
+      <td>${r.value ?? ""}</td>
+      <td style="text-align:right">${r.ttl ?? "—"}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/api/state", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const s = await res.json();
+
+    $("hits").textContent = s.stats.hits;
+    $("misses").textContent = s.stats.misses;
+    $("hitrate").textContent = fmtPct(s.stats.hit_rate);
+    $("total").textContent = s.stats.total;
+
+    $("cfg-host").textContent = s.config.host;
+    $("cfg-port").textContent = s.config.port;
+    $("cfg-ttl").textContent = s.config.ttl_seconds;
+    $("cfg-ttl2").textContent = s.config.ttl_seconds;
+    $("cfg-tick").textContent = s.config.tick_seconds;
+    $("cfg-tick2").textContent = s.config.tick_seconds;
+    $("cfg-slow").textContent = s.config.slow_compute_seconds;
+    $("cfg-slow2").textContent = s.config.slow_compute_seconds;
+    $("cfg-keys").textContent = s.config.keys.join(", ");
+
+    renderEvents(s.events);
+    renderCache(s.cache);
+
+    $("err").textContent = s.last_error ? "valkey error: " + s.last_error : "";
+  } catch (e) {
+    $("err").textContent = "ui error: " + e.message;
+  }
+}
+
+$("flush").addEventListener("click", async () => {
+  await fetch("/api/flush", { method: "POST" });
+  await refresh();
+});
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>

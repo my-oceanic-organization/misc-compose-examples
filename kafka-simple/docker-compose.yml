@@ -48,9 +48,12 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
+    ports:
+      - "8000:8000"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:19092"
       KAFKA_TOPIC: "demo"
       KAFKA_GROUP_ID: "demo-group"
       KAFKA_AUTO_OFFSET_RESET: "earliest"
+      HTTP_PORT: "8000"
     restart: on-failure

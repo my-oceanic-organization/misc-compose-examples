@@ -50,8 +50,10 @@ podman compose down
 The HTTP interface (`8123`) and native TCP (`9000`) are both exposed.
 
 ```bash
-# HTTP, ad-hoc query:
-curl 'http://localhost:8123/?query=SELECT+count()+FROM+events'
+# HTTP, ad-hoc query (works in curl *and* a browser tab — the
+# default_format makes ClickHouse respond with text/plain instead of
+# text/tab-separated-values, which is what triggers a file download):
+curl 'http://localhost:8123/?query=SELECT+count()+FROM+events&default_format=PrettyCompactNoEscapes'
 
 # Native client (if you have clickhouse-client installed locally):
 clickhouse-client --query 'SELECT event_type, count() FROM events GROUP BY event_type'

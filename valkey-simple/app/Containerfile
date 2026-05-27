@@ -7,9 +7,9 @@ WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app.py ./
+COPY app.py index.html ./
 
-EXPOSE 6379
+EXPOSE 8000
 
 ENTRYPOINT ["tini", "--"]
 CMD ["python", "-u", "app.py"]

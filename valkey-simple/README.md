@@ -4,8 +4,13 @@ Minimal compose example: the public `valkey/valkey:8-alpine` image plus a tiny
 in-repo Python app that demonstrates the **cache-aside** pattern with zero
 external dependencies. A deliberately-slow pure-Python function
 (`time.sleep(SLOW)` + a SHA-256 digest) is cached in Valkey with a short TTL,
-and a forever-loop picks random keys and prints a `HIT` or `MISS` line for
-each lookup so the caching behaviour is obvious from the container logs.
+and a forever-loop picks random keys and records a `HIT` or `MISS` for each
+lookup so the caching behaviour is obvious from the container logs **and from
+a tiny built-in web UI** at <http://localhost:8000>.
+
+The web UI exists so the demo can be shown end-to-end through a single HTTP
+route (handy on PaaS platforms) without anyone having to `docker logs` or
+shell in.
 
 ## Layout
 
@@ -16,7 +21,8 @@ valkey-simple/
 └── app/
     ├── Containerfile       # python:3.12-alpine + valkey-py
     ├── requirements.txt
-    └── app.py              # cache-aside loop, no external APIs
+    ├── app.py              # cache-aside loop + stdlib HTTP server
+    └── index.html          # single-page UI for the demo
 ```
 
 ## Run
@@ -27,7 +33,13 @@ podman compose up --build
 # or: docker compose up --build
 ```
 
-You should see, within a few seconds, output like:
+Then open <http://localhost:8000> — the page polls the app once a second and
+shows live hit/miss counts, the rolling event log, and the currently cached
+keys with their TTLs (read directly from Valkey, not from memory). There is
+also a button to flush `demo:hash:*`, which is a nice thing to click during a
+demo to watch the hit rate dip and recover.
+
+You should also see, within a few seconds, log output like:
 
 ```
 valkey-simple-app  | [boot] valkey=valkey:6379 ttl=10s tick=1s slow_compute=2s keys=[...]
@@ -64,7 +76,7 @@ valkey-cli -h localhost -p 6379 TTL demo:hash:alpha
 Or open a shell in the server container:
 
 ```bash
-docker exec -it valkey-simple-server valkey-cli
+podman exec -it valkey-simple-server valkey-cli
 ```
 
 Try `FLUSHALL` while the app is running -- the next tick for every key will be
@@ -81,6 +93,7 @@ The app reads these env vars (defaults shown):
 | `CACHE_TTL_SECONDS`     | `10`     |
 | `TICK_INTERVAL_SECONDS` | `1`      |
 | `SLOW_COMPUTE_SECONDS`  | `2`      |
+| `HTTP_PORT`             | `8000`   |
 
 ## Notes
 

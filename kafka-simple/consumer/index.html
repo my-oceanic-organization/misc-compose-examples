@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>kafka-simple · consumer</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0f1115;
+    --panel: #161a22;
+    --panel-2: #1e2330;
+    --border: #2a3142;
+    --fg: #e6e8ee;
+    --muted: #8b93a7;
+    --accent: #7cc4ff;
+    --ok: #4ade80;
+    --warn: #f59e0b;
+    --err: #f87171;
+    --mono: ui-monospace, SFMono-Regular, "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--fg); margin: 0; }
+  body { font: 14px/1.4 system-ui, -apple-system, Segoe UI, sans-serif; padding: 24px; }
+  h1 { margin: 0 0 4px; font-size: 22px; letter-spacing: -0.01em; }
+  h2 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--muted);
+       text-transform: uppercase; letter-spacing: 0.08em; }
+  .sub { color: var(--muted); margin-bottom: 20px; }
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .col-3 { grid-column: span 3; }
+  .col-4 { grid-column: span 4; }
+  .col-6 { grid-column: span 6; }
+  .col-8 { grid-column: span 8; }
+  .col-12 { grid-column: span 12; }
+  @media (max-width: 900px) {
+    .col-3, .col-4, .col-6, .col-8 { grid-column: span 12; }
+  }
+  .stat { font-family: var(--mono); font-size: 40px; line-height: 1; font-weight: 600; }
+  .stat-label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  tbody tr:last-child td { border-bottom: 0; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: var(--panel-2);
+          color: var(--muted); font-family: var(--mono); font-size: 11px; }
+  .pill strong { color: var(--fg); }
+  .muted { color: var(--muted); }
+  .mono { font-family: var(--mono); }
+  .row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .err-banner { background: rgba(248,113,113,0.08); border: 1px solid rgba(248,113,113,0.35);
+                color: var(--err); padding: 10px 14px; border-radius: 10px; margin-bottom: 16px;
+                font-family: var(--mono); font-size: 13px; }
+  .err-banner:empty { display: none; }
+  pre { margin: 0; font-family: var(--mono); font-size: 12.5px; white-space: pre-wrap; word-break: break-word; }
+</style>
+</head>
+<body>
+  <h1>kafka-simple <span class="muted">· consumer</span></h1>
+  <div class="sub">
+    Subscribed to topic <span id="cfg-topic" class="mono">…</span> on
+    <span id="cfg-bootstrap" class="mono">…</span> as group
+    <span id="cfg-group" class="mono">…</span>. The producer container in
+    this compose stack is publishing a message every couple of seconds.
+  </div>
+
+  <div id="err" class="err-banner"></div>
+
+  <div class="grid">
+    <div class="card col-4">
+      <div class="stat-label">Messages consumed</div>
+      <div class="stat" id="count">0</div>
+    </div>
+    <div class="card col-4">
+      <div class="stat-label">Partitions seen</div>
+      <div class="stat" id="partitions">0</div>
+    </div>
+    <div class="card col-4">
+      <div class="stat-label">Status</div>
+      <div class="stat" id="status">connecting</div>
+    </div>
+
+    <div class="card col-4">
+      <h2>Per-partition</h2>
+      <table>
+        <thead>
+          <tr><th>partition</th><th>count</th><th style="text-align:right">last offset</th></tr>
+        </thead>
+        <tbody id="by-partition"></tbody>
+      </table>
+      <div id="by-partition-empty" class="muted" style="margin-top: 8px;">No messages yet.</div>
+    </div>
+
+    <div class="card col-8">
+      <h2>Recent messages</h2>
+      <table>
+        <thead>
+          <tr><th>when</th><th style="text-align:right">part</th><th style="text-align:right">offset</th><th>value</th></tr>
+        </thead>
+        <tbody id="events"></tbody>
+      </table>
+      <div id="events-empty" class="muted" style="margin-top: 8px;">Waiting for the first message…</div>
+    </div>
+
+    <div class="card col-12">
+      <h2>Connection</h2>
+      <div class="row">
+        <span class="pill">bootstrap <strong id="cfg-bootstrap2">…</strong></span>
+        <span class="pill">topic <strong id="cfg-topic2">…</strong></span>
+        <span class="pill">group <strong id="cfg-group2">…</strong></span>
+        <span class="pill">offset_reset <strong id="cfg-offset">…</strong></span>
+      </div>
+    </div>
+  </div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+function renderEvents(rows) {
+  const tbody = $("events");
+  tbody.innerHTML = "";
+  $("events-empty").style.display = rows.length === 0 ? "" : "none";
+  for (const r of rows.slice(0, 20)) {
+    const tr = document.createElement("tr");
+    const t = r.ts.split("T")[1]?.replace("Z", "") ?? r.ts;
+    const v = typeof r.value === "string" ? r.value : JSON.stringify(r.value);
+    tr.innerHTML = `
+      <td class="muted">${t}</td>
+      <td style="text-align:right">${r.partition}</td>
+      <td style="text-align:right">${r.offset}</td>
+      <td><pre>${v}</pre></td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+function renderPartitions(rows) {
+  const tbody = $("by-partition");
+  tbody.innerHTML = "";
+  $("by-partition-empty").style.display = rows.length === 0 ? "" : "none";
+  for (const p of rows) {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${p.partition}</td>
+      <td>${p.count}</td>
+      <td style="text-align:right">${p.last_offset}</td>`;
+    tbody.appendChild(tr);
+  }
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/api/state", { cache: "no-store" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const s = await res.json();
+
+    $("cfg-bootstrap").textContent = s.config.bootstrap;
+    $("cfg-bootstrap2").textContent = s.config.bootstrap;
+    $("cfg-topic").textContent = s.config.topic;
+    $("cfg-topic2").textContent = s.config.topic;
+    $("cfg-group").textContent = s.config.group_id;
+    $("cfg-group2").textContent = s.config.group_id;
+    $("cfg-offset").textContent = s.config.auto_offset_reset;
+
+    $("count").textContent = s.count;
+    $("partitions").textContent = s.by_partition.length;
+    $("status").textContent = s.connected ? "connected" : "connecting";
+    $("status").style.color = s.connected ? "var(--ok)" : "var(--warn)";
+
+    renderPartitions(s.by_partition);
+    renderEvents(s.events);
+
+    $("err").textContent = s.last_error ? "kafka error: " + s.last_error : "";
+  } catch (e) {
+    $("err").textContent = "ui error: " + e.message;
+  }
+}
+
+refresh();
+setInterval(refresh, 1000);
+</script>
+</body>
+</html>
