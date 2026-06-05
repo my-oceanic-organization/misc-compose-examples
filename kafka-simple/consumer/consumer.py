@@ -11,12 +11,22 @@ Configuration via env vars (defaults are compose-friendly):
   KAFKA_GROUP_ID           default: demo-group
   KAFKA_AUTO_OFFSET_RESET  default: earliest
   HTTP_PORT                default: 8000
+
+mTLS over SSL is supported out of the box. When the platform substitutes the
+in-compose broker for a managed service it injects:
+  KAFKA_SECURITY_PROTOCOL  e.g. SSL
+  KAFKA_CA_CERT            CA certificate (inline PEM)
+  KAFKA_ACCESS_CERT        client certificate (inline PEM)
+  KAFKA_ACCESS_KEY         client private key (inline PEM)
+  KAFKA_API_VERSION        optional, e.g. 2.6.0
 """
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
+import tempfile
 import threading
 import time
 from collections import deque
@@ -26,12 +36,13 @@ from pathlib import Path
 from typing import Any
 
 from kafka import KafkaConsumer
-from kafka.errors import NoBrokersAvailable
+from kafka.errors import KafkaError
 
 BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:19092")
 TOPIC = os.environ.get("KAFKA_TOPIC", "demo")
 GROUP_ID = os.environ.get("KAFKA_GROUP_ID", "demo-group")
 AUTO_OFFSET_RESET = os.environ.get("KAFKA_AUTO_OFFSET_RESET", "earliest")
+SECURITY_PROTOCOL = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()
 HTTP_PORT = int(os.environ.get("HTTP_PORT", "8000"))
 
 INDEX_HTML = (Path(__file__).parent / "index.html").read_bytes()
@@ -73,9 +84,43 @@ def _record(partition: int, offset: int, value: Any) -> None:
 # ---------------------------------------------------------------------------
 
 
+def _materialize_pem(label: str, pem: str) -> str:
+    # Managed Kafka providers hand us the CA / client cert / key as inline PEM
+    # strings, but kafka-python wants file paths: write each to a temp file.
+    fd, path = tempfile.mkstemp(prefix=f"kafka-{label}-", suffix=".pem")
+    with os.fdopen(fd, "w") as fh:
+        fh.write(pem)
+    atexit.register(lambda p=path: os.path.exists(p) and os.remove(p))
+    return path
+
+
+def security_kwargs() -> dict[str, object]:
+    # Local compose talks PLAINTEXT to the in-network broker; nothing to add.
+    if SECURITY_PROTOCOL == "PLAINTEXT":
+        return {}
+    kwargs: dict[str, object] = {"security_protocol": SECURITY_PROTOCOL}
+    for env_name, kw in (
+        ("KAFKA_CA_CERT", "ssl_cafile"),
+        ("KAFKA_ACCESS_CERT", "ssl_certfile"),
+        ("KAFKA_ACCESS_KEY", "ssl_keyfile"),
+    ):
+        pem = os.environ.get(env_name)
+        if pem:
+            kwargs[kw] = _materialize_pem(env_name.lower(), pem)
+    # kafka-python's broker-version auto-probe is unreliable over TLS and
+    # raises UnrecognizedBrokerVersion (dpkp/kafka-python#1796); pin it.
+    version = os.environ.get("KAFKA_API_VERSION", "2.6.0")
+    kwargs["api_version"] = tuple(int(p) for p in version.split("."))
+    return kwargs
+
+
 def connect(retries: int = 30, delay: float = 2.0) -> KafkaConsumer:
     # depends_on: service_healthy should make this loop unnecessary under
     # compose, but keep it so the consumer is also runnable standalone.
+    # Catch KafkaError broadly (not just NoBrokersAvailable): a misconfigured
+    # TLS/mTLS connection surfaces as UnrecognizedBrokerVersion.
+    extra = security_kwargs()
+    last_error: KafkaError | None = None
     for attempt in range(1, retries + 1):
         try:
             return KafkaConsumer(
@@ -85,14 +130,19 @@ def connect(retries: int = 30, delay: float = 2.0) -> KafkaConsumer:
                 auto_offset_reset=AUTO_OFFSET_RESET,
                 enable_auto_commit=True,
                 value_deserializer=lambda b: json.loads(b.decode("utf-8")),
+                **extra,
             )
-        except NoBrokersAvailable:
+        except KafkaError as e:
+            last_error = e
             print(
-                f"[wait] kafka not reachable yet (attempt {attempt}/{retries})",
+                f"[wait] kafka not reachable yet "
+                f"({type(e).__name__}; attempt {attempt}/{retries})",
                 flush=True,
             )
             time.sleep(delay)
-    raise RuntimeError(f"kafka at {BOOTSTRAP} never became reachable")
+    raise RuntimeError(
+        f"kafka at {BOOTSTRAP} never became reachable: {last_error}"
+    )
 
 
 def consume_loop() -> None:
@@ -127,6 +177,7 @@ def _snapshot() -> dict[str, Any]:
                 "topic": TOPIC,
                 "group_id": GROUP_ID,
                 "auto_offset_reset": AUTO_OFFSET_RESET,
+                "security_protocol": SECURITY_PROTOCOL,
             },
             "connected": _state["connected"],
             "count": _state["count"],
@@ -166,7 +217,8 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     print(
         f"[boot] consumer bootstrap={BOOTSTRAP} topic={TOPIC} "
-        f"group={GROUP_ID} offset_reset={AUTO_OFFSET_RESET} http_port={HTTP_PORT}",
+        f"group={GROUP_ID} offset_reset={AUTO_OFFSET_RESET} "
+        f"security={SECURITY_PROTOCOL} http_port={HTTP_PORT}",
         flush=True,
     )
 

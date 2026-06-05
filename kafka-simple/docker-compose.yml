@@ -38,6 +38,11 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:19092"
       KAFKA_TOPIC: "demo"
       PRODUCE_INTERVAL_SECONDS: "2"
+      # Local compose talks PLAINTEXT to the in-network broker. On a platform
+      # that swaps in a managed Kafka service, this is overridden with SSL and
+      # KAFKA_CA_CERT / KAFKA_ACCESS_CERT / KAFKA_ACCESS_KEY (inline PEM) are
+      # injected for mTLS — no app change needed.
+      KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
     restart: on-failure
 
   consumer:
@@ -55,5 +60,8 @@ services:
       KAFKA_TOPIC: "demo"
       KAFKA_GROUP_ID: "demo-group"
       KAFKA_AUTO_OFFSET_RESET: "earliest"
+      # See the producer service: PLAINTEXT locally, overridden to SSL (mTLS)
+      # when the platform substitutes a managed Kafka service.
+      KAFKA_SECURITY_PROTOCOL: "PLAINTEXT"
       HTTP_PORT: "8000"
     restart: on-failure

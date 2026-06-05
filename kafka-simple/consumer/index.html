@@ -109,6 +109,7 @@
         <span class="pill">topic <strong id="cfg-topic2">…</strong></span>
         <span class="pill">group <strong id="cfg-group2">…</strong></span>
         <span class="pill">offset_reset <strong id="cfg-offset">…</strong></span>
+        <span class="pill">security <strong id="cfg-security">…</strong></span>
       </div>
     </div>
   </div>
@@ -160,6 +161,7 @@ async function refresh() {
     $("cfg-group").textContent = s.config.group_id;
     $("cfg-group2").textContent = s.config.group_id;
     $("cfg-offset").textContent = s.config.auto_offset_reset;
+    $("cfg-security").textContent = s.config.security_protocol;
 
     $("count").textContent = s.count;
     $("partitions").textContent = s.by_partition.length;

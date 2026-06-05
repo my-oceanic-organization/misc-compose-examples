@@ -78,11 +78,18 @@ podman exec -it kafka-simple-broker \
 
 Producer env vars (defaults shown):
 
-| Variable                   | Default       |
-| -------------------------- | ------------- |
-| `KAFKA_BOOTSTRAP_SERVERS`  | `kafka:19092` |
-| `KAFKA_TOPIC`              | `demo`        |
-| `PRODUCE_INTERVAL_SECONDS` | `2`           |
+| Variable                   | Default              |
+| -------------------------- | -------------------- |
+| `KAFKA_BOOTSTRAP_SERVERS`  | `kafka:19092`        |
+| `KAFKA_TOPIC`              | `demo`               |
+| `PRODUCE_INTERVAL_SECONDS` | `2`                  |
+| `KAFKA_SECURITY_PROTOCOL`  | `PLAINTEXT`          |
+| `KAFKA_NUM_PARTITIONS`     | `-1` (broker default) |
+| `KAFKA_REPLICATION_FACTOR` | `-1` (broker default) |
+
+The producer creates `KAFKA_TOPIC` at startup if it doesn't exist (managed
+brokers usually have `auto.create.topics.enable=false`). Partition count and
+replication factor default to `-1`, i.e. whatever the broker mandates.
 
 Consumer env vars (defaults shown):
 
@@ -92,7 +99,30 @@ Consumer env vars (defaults shown):
 | `KAFKA_TOPIC`             | `demo`        |
 | `KAFKA_GROUP_ID`          | `demo-group`  |
 | `KAFKA_AUTO_OFFSET_RESET` | `earliest`    |
+| `KAFKA_SECURITY_PROTOCOL` | `PLAINTEXT`   |
 | `HTTP_PORT`               | `8000`        |
+
+### TLS client-certificate auth (mTLS over SSL)
+
+Both apps connect with `PLAINTEXT` by default, which is what the in-compose
+broker speaks. They also support **client-certificate (mTLS) auth over SSL out
+of the box** — the variant used by managed Kafka providers — so no code change
+is needed when a platform swaps the broker for a managed service. Set these
+(a managed-Kafka integration typically injects them as inline PEM strings):
+
+| Variable                  | Meaning                                         |
+| ------------------------- | ----------------------------------------------- |
+| `KAFKA_SECURITY_PROTOCOL` | `SSL` to enable mTLS                             |
+| `KAFKA_CA_CERT`           | CA certificate, inline PEM                       |
+| `KAFKA_ACCESS_CERT`       | client certificate, inline PEM                   |
+| `KAFKA_ACCESS_KEY`        | client private key, inline PEM                   |
+| `KAFKA_API_VERSION`       | optional, e.g. `2.6.0` (defaults to `2.6.0`)     |
+
+When `KAFKA_SECURITY_PROTOCOL` is not `PLAINTEXT`, the three PEM strings are
+written to private temp files (kafka-python wants file paths) and the broker
+API version is pinned — `kafka-python`'s auto-probe is unreliable over TLS and
+otherwise raises `UnrecognizedBrokerVersion`
+([dpkp/kafka-python#1796](https://github.com/dpkp/kafka-python/issues/1796)).
 
 ## Notes
 
