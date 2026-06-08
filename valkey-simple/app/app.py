@@ -10,8 +10,7 @@ this demo can be shown end-to-end via a PaaS HTTP route without anyone having
 to ``docker logs`` or shell in.
 
 Configuration is via env vars (with safe defaults for use under compose):
-  VALKEY_HOST            default: valkey
-  VALKEY_PORT            default: 6379
+  VALKEY_URL             default: valkey://valkey:6379
   CACHE_TTL_SECONDS      default: 10     (entries expire, forcing re-MISSes)
   TICK_INTERVAL_SECONDS  default: 1      (delay between lookups)
   SLOW_COMPUTE_SECONDS   default: 2      (how slow a MISS feels)
@@ -35,8 +34,7 @@ from typing import Any
 import valkey
 from valkey.exceptions import ConnectionError as ValkeyConnectionError
 
-HOST = os.environ.get("VALKEY_HOST", "valkey")
-PORT = int(os.environ.get("VALKEY_PORT", "6379"))
+VALKEY_URL = os.environ.get("VALKEY_URL", "valkey://valkey:6379")
 TTL = int(os.environ.get("CACHE_TTL_SECONDS", "10"))
 TICK = float(os.environ.get("TICK_INTERVAL_SECONDS", "1"))
 SLOW = float(os.environ.get("SLOW_COMPUTE_SECONDS", "2"))
@@ -97,7 +95,7 @@ def connect_with_retry(retries: int = 30, delay: float = 1.0) -> valkey.Valkey:
     last_err: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            client = valkey.Valkey(host=HOST, port=PORT, decode_responses=True)
+            client = valkey.Valkey.from_url(VALKEY_URL, decode_responses=True)
             client.ping()
             return client
         except ValkeyConnectionError as e:
@@ -108,7 +106,7 @@ def connect_with_retry(retries: int = 30, delay: float = 1.0) -> valkey.Valkey:
                 flush=True,
             )
             time.sleep(delay)
-    raise RuntimeError(f"valkey at {HOST}:{PORT} never became reachable: {last_err}")
+    raise RuntimeError(f"valkey at {VALKEY_URL} never became reachable: {last_err}")
 
 
 def get_or_compute(client: valkey.Valkey, key: str) -> tuple[str, str, float]:
@@ -179,8 +177,7 @@ def _snapshot(client: valkey.Valkey) -> dict[str, Any]:
         total = _state["hits"] + _state["misses"]
         return {
             "config": {
-                "host": HOST,
-                "port": PORT,
+                "url": VALKEY_URL,
                 "ttl_seconds": TTL,
                 "tick_seconds": TICK,
                 "slow_compute_seconds": SLOW,
@@ -243,7 +240,7 @@ def make_handler(client: valkey.Valkey) -> type[BaseHTTPRequestHandler]:
 
 def main() -> None:
     print(
-        f"[boot] valkey={HOST}:{PORT} ttl={TTL}s "
+        f"[boot] valkey={VALKEY_URL} ttl={TTL}s "
         f"tick={TICK}s slow_compute={SLOW}s keys={KEYS} http_port={HTTP_PORT}",
         flush=True,
     )

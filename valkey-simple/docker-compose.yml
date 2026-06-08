@@ -22,8 +22,7 @@ services:
     ports:
       - "8000:8000"
     environment:
-      VALKEY_HOST: "valkey"
-      VALKEY_PORT: "6379"
+      VALKEY_URL: "valkey://valkey:6379"
       CACHE_TTL_SECONDS: "10"
       TICK_INTERVAL_SECONDS: "1"
       SLOW_COMPUTE_SECONDS: "2"

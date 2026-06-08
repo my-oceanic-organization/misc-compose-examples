@@ -42,7 +42,7 @@ demo to watch the hit rate dip and recover.
 You should also see, within a few seconds, log output like:
 
 ```
-valkey-simple-app  | [boot] valkey=valkey:6379 ttl=10s tick=1s slow_compute=2s keys=[...]
+valkey-simple-app  | [boot] valkey=valkey://valkey:6379 ttl=10s tick=1s slow_compute=2s keys=[...]
 valkey-simple-app  | [MISS] key=delta    value=8d4f3e... in 2002.41 ms  (hits=0 misses=1 hit_rate=  0.0%)
 valkey-simple-app  | [MISS] key=alpha    value=2c26b46... in 2001.88 ms  (hits=0 misses=2 hit_rate=  0.0%)
 valkey-simple-app  | [HIT ] key=delta    value=8d4f3e... in    0.41 ms  (hits=1 misses=2 hit_rate= 33.3%)
@@ -86,14 +86,13 @@ a `MISS`, then everything goes back to `HIT`s. Fun.
 
 The app reads these env vars (defaults shown):
 
-| Variable                | Default  |
-| ----------------------- | -------- |
-| `VALKEY_HOST`           | `valkey` |
-| `VALKEY_PORT`           | `6379`   |
-| `CACHE_TTL_SECONDS`     | `10`     |
-| `TICK_INTERVAL_SECONDS` | `1`      |
-| `SLOW_COMPUTE_SECONDS`  | `2`      |
-| `HTTP_PORT`             | `8000`   |
+| Variable                | Default                  |
+| ----------------------- | ------------------------ |
+| `VALKEY_URL`            | `valkey://valkey:6379`   |
+| `CACHE_TTL_SECONDS`     | `10`                     |
+| `TICK_INTERVAL_SECONDS` | `1`                      |
+| `SLOW_COMPUTE_SECONDS`  | `2`                      |
+| `HTTP_PORT`             | `8000`                   |
 
 ## Notes
 
@@ -105,6 +104,7 @@ The app reads these env vars (defaults shown):
 - `depends_on: condition: service_healthy` plus a `valkey-cli ping` health
   check means the app only starts once Valkey is actually responding.
 - `app.py` also has a small reconnect loop so it's runnable standalone
-  against any reachable Valkey/Redis (set `VALKEY_HOST` / `VALKEY_PORT`).
+  against any reachable Valkey/Redis (set `VALKEY_URL`, e.g.
+  `valkey://localhost:6379` or `valkeys://user:pass@host:6380/0`).
 - `Containerfile` (not `Dockerfile`) is used to match the rest of this repo;
   `docker-compose.yml` points at it explicitly via `build.dockerfile`.

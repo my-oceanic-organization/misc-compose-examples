@@ -117,8 +117,7 @@
     <div class="card col-12">
       <h2>Connection</h2>
       <div class="row">
-        <span class="pill">host <strong id="cfg-host">…</strong></span>
-        <span class="pill">port <strong id="cfg-port">…</strong></span>
+        <span class="pill">url <strong id="cfg-url">…</strong></span>
         <span class="pill">ttl <strong id="cfg-ttl2">…</strong>s</span>
         <span class="pill">tick <strong id="cfg-tick2">…</strong>s</span>
         <span class="pill">slow_compute <strong id="cfg-slow2">…</strong>s</span>
@@ -173,8 +172,7 @@ async function refresh() {
     $("hitrate").textContent = fmtPct(s.stats.hit_rate);
     $("total").textContent = s.stats.total;
 
-    $("cfg-host").textContent = s.config.host;
-    $("cfg-port").textContent = s.config.port;
+    $("cfg-url").textContent = s.config.url;
     $("cfg-ttl").textContent = s.config.ttl_seconds;
     $("cfg-ttl2").textContent = s.config.ttl_seconds;
     $("cfg-tick").textContent = s.config.tick_seconds;
