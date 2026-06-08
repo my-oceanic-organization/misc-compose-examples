@@ -28,10 +28,6 @@ services:
       # and behold a 1989-vintage HTML page rendered from Postgres rows.
       - "8000:8000"
     environment:
-      POSTGRES_HOST: "postgres"
-      POSTGRES_PORT: "5432"
-      POSTGRES_DB: "demo"
-      POSTGRES_USER: "demo"
-      POSTGRES_PASSWORD: "demo"
+      PG_URL: "postgresql://demo:demo@postgres:5432/demo"
       HTTP_PORT: "8000"
     restart: on-failure

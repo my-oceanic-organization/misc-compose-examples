@@ -1,28 +1,21 @@
 """Populate the demo database with a tiny list of fruits.
 
 Runs once at container start (see Containerfile CMD) before the web app boots.
-Idempotent: drops & recreates the table so repeated `compose up` runs are clean.
+Idempotent: drops & recreates the table so repeated `compose up` runs are repeatable.
 
 Configuration is via env vars (with safe defaults for use under compose):
-  POSTGRES_HOST      default: postgres
-  POSTGRES_PORT      default: 5432
-  POSTGRES_DB        default: demo
-  POSTGRES_USER      default: demo
-  POSTGRES_PASSWORD  default: demo
+  PG_URL  default: postgresql://demo:demo@postgres:5432/demo
 """
 
 from __future__ import annotations
 
 import os
 import time
+from urllib.parse import urlsplit
 
 import psycopg
 
-HOST = os.environ.get("POSTGRES_HOST", "postgres")
-PORT = int(os.environ.get("POSTGRES_PORT", "5432"))
-DB = os.environ.get("POSTGRES_DB", "demo")
-USER = os.environ.get("POSTGRES_USER", "demo")
-PASSWORD = os.environ.get("POSTGRES_PASSWORD", "demo")
+PG_URL = os.environ.get("PG_URL", "postgresql://demo:demo@postgres:5432/demo")
 
 FRUITS: list[tuple[str, str, int]] = [
     ("Apple",      "Red, crunchy, ubiquitous.",                89),
@@ -38,19 +31,21 @@ FRUITS: list[tuple[str, str, int]] = [
 ]
 
 
+def _redacted_url(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.password:
+        netloc = parts.netloc.replace(f":{parts.password}@", ":***@", 1)
+        return parts._replace(netloc=netloc).geturl()
+    return url
+
+
 def connect_with_retry(retries: int = 30, delay: float = 1.0) -> psycopg.Connection:
     # depends_on: service_healthy should make this unnecessary, but keep a
     # short retry loop so the seed step is also runnable standalone.
     last_err: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
-            return psycopg.connect(
-                host=HOST,
-                port=PORT,
-                dbname=DB,
-                user=USER,
-                password=PASSWORD,
-            )
+            return psycopg.connect(PG_URL)
         except psycopg.OperationalError as e:
             last_err = e
             print(
@@ -59,11 +54,13 @@ def connect_with_retry(retries: int = 30, delay: float = 1.0) -> psycopg.Connect
                 flush=True,
             )
             time.sleep(delay)
-    raise RuntimeError(f"postgres at {HOST}:{PORT} never became reachable: {last_err}")
+    raise RuntimeError(
+        f"postgres at {_redacted_url(PG_URL)} never became reachable: {last_err}"
+    )
 
 
 def main() -> None:
-    print(f"[seed] connecting to {HOST}:{PORT}/{DB} as {USER}", flush=True)
+    print(f"[seed] connecting to {_redacted_url(PG_URL)}", flush=True)
     with connect_with_retry() as conn, conn.cursor() as cur:
         cur.execute("DROP TABLE IF EXISTS fruits")
         cur.execute(

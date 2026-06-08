@@ -31,9 +31,9 @@ podman compose up --build
 You should see, within a few seconds:
 
 ```
-postgres-simple-app  | [seed] connecting to postgres:5432/demo as demo
+postgres-simple-app  | [seed] connecting to postgresql://demo:***@postgres:5432/demo
 postgres-simple-app  | [seed] loaded 10 fruits
-postgres-simple-app  | [boot] postgres=postgres:5432/demo as demo serving on 0.0.0.0:8000
+postgres-simple-app  | [boot] postgres=postgresql://demo:***@postgres:5432/demo serving on 0.0.0.0:8000
 ```
 
 Then open <http://localhost:8000> in a browser. You'll get something that
@@ -81,14 +81,10 @@ podman exec -it postgres-simple-db psql -U demo -d demo
 
 The app reads these env vars (defaults shown):
 
-| Variable            | Default     |
-| ------------------- | ----------- |
-| `POSTGRES_HOST`     | `postgres`  |
-| `POSTGRES_PORT`     | `5432`      |
-| `POSTGRES_DB`       | `demo`      |
-| `POSTGRES_USER`     | `demo`      |
-| `POSTGRES_PASSWORD` | `demo`      |
-| `HTTP_PORT`         | `8000`      |
+| Variable    | Default                                    |
+| ----------- | ------------------------------------------ |
+| `PG_URL`    | `postgresql://demo:demo@postgres:5432/demo` |
+| `HTTP_PORT` | `8000`                                     |
 
 ## Notes
 
@@ -100,6 +96,6 @@ The app reads these env vars (defaults shown):
 - `depends_on: condition: service_healthy` plus a `pg_isready` healthcheck
   means the app only starts once Postgres is actually accepting connections.
 - `seed.py` also has a small reconnect loop so it works standalone against
-  any reachable Postgres (set `POSTGRES_HOST` / `POSTGRES_PORT`).
+  any reachable Postgres (set `PG_URL`).
 - `Containerfile` (not `Dockerfile`) is used to match the rest of this repo;
   `docker-compose.yml` points at it explicitly via `build.dockerfile`.

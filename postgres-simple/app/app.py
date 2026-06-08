@@ -5,12 +5,8 @@ HTML page (no doctype, no CSS, capital tags, plain hyperlinked text).
 Pair with seed.py, which populates the table at container start.
 
 Configuration is via env vars (with safe defaults for use under compose):
-  POSTGRES_HOST      default: postgres
-  POSTGRES_PORT      default: 5432
-  POSTGRES_DB        default: demo
-  POSTGRES_USER      default: demo
-  POSTGRES_PASSWORD  default: demo
-  HTTP_PORT          default: 8000
+  PG_URL     default: postgresql://demo:demo@postgres:5432/demo
+  HTTP_PORT  default: 8000
 """
 
 from __future__ import annotations
@@ -22,21 +18,13 @@ from urllib.parse import urlsplit
 
 import psycopg
 
-HOST = os.environ.get("POSTGRES_HOST", "postgres")
-PORT = int(os.environ.get("POSTGRES_PORT", "5432"))
-DB = os.environ.get("POSTGRES_DB", "demo")
-USER = os.environ.get("POSTGRES_USER", "demo")
-PASSWORD = os.environ.get("POSTGRES_PASSWORD", "demo")
+PG_URL = os.environ.get("PG_URL", "postgresql://demo:demo@postgres:5432/demo")
 
 HTTP_PORT = int(os.environ.get("HTTP_PORT", "8000"))
 
-CONNINFO = (
-    f"host={HOST} port={PORT} dbname={DB} user={USER} password={PASSWORD}"
-)
-
 
 def fetch_fruits() -> list[tuple[int, str, str, int]]:
-    with psycopg.connect(CONNINFO) as conn, conn.cursor() as cur:
+    with psycopg.connect(PG_URL) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT id, name, description, calories FROM fruits ORDER BY name"
         )
@@ -44,7 +32,7 @@ def fetch_fruits() -> list[tuple[int, str, str, int]]:
 
 
 def fetch_fruit(fruit_id: int) -> tuple[int, str, str, int] | None:
-    with psycopg.connect(CONNINFO) as conn, conn.cursor() as cur:
+    with psycopg.connect(PG_URL) as conn, conn.cursor() as cur:
         cur.execute(
             "SELECT id, name, description, calories FROM fruits WHERE id = %s",
             (fruit_id,),
@@ -164,9 +152,17 @@ class Handler(BaseHTTPRequestHandler):
         print(f"[http] {self.address_string()} - {format % args}", flush=True)
 
 
+def _redacted_url(url: str) -> str:
+    parts = urlsplit(url)
+    if parts.password:
+        netloc = parts.netloc.replace(f":{parts.password}@", ":***@", 1)
+        return parts._replace(netloc=netloc).geturl()
+    return url
+
+
 def main() -> None:
     print(
-        f"[boot] postgres={HOST}:{PORT}/{DB} as {USER} "
+        f"[boot] postgres={_redacted_url(PG_URL)} "
         f"serving on 0.0.0.0:{HTTP_PORT}",
         flush=True,
     )
