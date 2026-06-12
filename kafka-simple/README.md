@@ -43,8 +43,8 @@ N messages, per-partition stats). You should also see interleaved log output
 like:
 
 ```
-kafka-simple-producer  | [boot] producer bootstrap=kafka:19092 topic=demo interval=2.0s
-kafka-simple-consumer  | [boot] consumer bootstrap=kafka:19092 topic=demo group=demo-group offset_reset=earliest
+kafka-simple-producer  | [boot] producer bootstrap=kafka:19092 topic=kafka-simple-demo-topic interval=2.0s
+kafka-simple-consumer  | [boot] consumer bootstrap=kafka:19092 topic=kafka-simple-demo-topic group=demo-group offset_reset=earliest
 kafka-simple-producer  | [produce] -> {'n': 0, 'ts': '2026-05-26T...+00:00'}
 kafka-simple-consumer  | [consume] partition=0 offset=0 value={'n': 0, 'ts': '2026-05-26T...+00:00'}
 kafka-simple-producer  | [produce] -> {'n': 1, 'ts': '...'}
@@ -63,7 +63,7 @@ The broker also exposes a `PLAINTEXT_HOST` listener on `localhost:9092`, so you
 can use any Kafka client (e.g. `kcat`) from the host:
 
 ```bash
-kcat -b localhost:9092 -t demo -C -o beginning -q
+kcat -b localhost:9092 -t kafka-simple-demo-topic -C -o beginning -q
 ```
 
 Or shell into the broker and use the bundled CLI:
@@ -71,7 +71,7 @@ Or shell into the broker and use the bundled CLI:
 ```bash
 podman exec -it kafka-simple-broker \
   /opt/kafka/bin/kafka-console-consumer.sh \
-  --bootstrap-server localhost:19092 --topic demo --from-beginning
+  --bootstrap-server localhost:19092 --topic kafka-simple-demo-topic --from-beginning
 ```
 
 ## Configuration
@@ -81,22 +81,25 @@ Producer env vars (defaults shown):
 | Variable                   | Default              |
 | -------------------------- | -------------------- |
 | `KAFKA_BOOTSTRAP_SERVERS`  | `kafka:19092`        |
-| `KAFKA_TOPIC`              | `demo`               |
+| `KAFKA_TOPIC`              | `kafka-simple-demo-topic` |
 | `PRODUCE_INTERVAL_SECONDS` | `2`                  |
 | `KAFKA_SECURITY_PROTOCOL`  | `PLAINTEXT`          |
-| `KAFKA_NUM_PARTITIONS`     | `-1` (broker default) |
-| `KAFKA_REPLICATION_FACTOR` | `-1` (broker default) |
+| `KAFKA_NUM_PARTITIONS`     | `1`                  |
+| `KAFKA_REPLICATION_FACTOR` | `1`                  |
 
 The producer creates `KAFKA_TOPIC` at startup if it doesn't exist (managed
-brokers usually have `auto.create.topics.enable=false`). Partition count and
-replication factor default to `-1`, i.e. whatever the broker mandates.
+brokers usually have `auto.create.topics.enable=false`). It first lists topics,
+then creates the topic only when missing. Partition count and replication
+factor are explicit because some admin clients reject `-1` broker defaults when
+creating topics. For managed Kafka, set `KAFKA_REPLICATION_FACTOR` to a value
+your service accepts, or pre-create the topic in the provider console.
 
 Consumer env vars (defaults shown):
 
 | Variable                  | Default       |
 | ------------------------- | ------------- |
 | `KAFKA_BOOTSTRAP_SERVERS` | `kafka:19092` |
-| `KAFKA_TOPIC`             | `demo`        |
+| `KAFKA_TOPIC`             | `kafka-simple-demo-topic` |
 | `KAFKA_GROUP_ID`          | `demo-group`  |
 | `KAFKA_AUTO_OFFSET_RESET` | `earliest`    |
 | `KAFKA_SECURITY_PROTOCOL` | `PLAINTEXT`   |

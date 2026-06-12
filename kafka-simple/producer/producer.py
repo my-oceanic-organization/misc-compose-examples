@@ -2,10 +2,10 @@
 
 Configuration via env vars (defaults are compose-friendly):
   KAFKA_BOOTSTRAP_SERVERS  default: kafka:19092
-  KAFKA_TOPIC              default: demo
+  KAFKA_TOPIC              default: kafka-simple-demo-topic
   PRODUCE_INTERVAL_SECONDS default: 2
-  KAFKA_NUM_PARTITIONS     default: -1 (use broker default)
-  KAFKA_REPLICATION_FACTOR default: -1 (use broker default)
+  KAFKA_NUM_PARTITIONS     default: 1
+  KAFKA_REPLICATION_FACTOR default: 1
 
 The topic is created at startup if it doesn't exist, since managed brokers
 usually disable auto.create.topics.enable.
@@ -33,13 +33,11 @@ from kafka.admin import KafkaAdminClient, NewTopic
 from kafka.errors import KafkaError, TopicAlreadyExistsError
 
 BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:19092")
-TOPIC = os.environ.get("KAFKA_TOPIC", "demo")
+TOPIC = os.environ.get("KAFKA_TOPIC", "kafka-simple-demo-topic")
 INTERVAL = float(os.environ.get("PRODUCE_INTERVAL_SECONDS", "2"))
 SECURITY_PROTOCOL = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()
-# -1 means "use the broker default" (KIP-464): 1 partition / replica locally,
-# whatever the managed cluster mandates (often replication factor >= 2/3).
-NUM_PARTITIONS = int(os.environ.get("KAFKA_NUM_PARTITIONS", "-1"))
-REPLICATION_FACTOR = int(os.environ.get("KAFKA_REPLICATION_FACTOR", "-1"))
+NUM_PARTITIONS = int(os.environ.get("KAFKA_NUM_PARTITIONS", "1"))
+REPLICATION_FACTOR = int(os.environ.get("KAFKA_REPLICATION_FACTOR", "1"))
 
 
 def _materialize_pem(label: str, pem: str) -> str:
@@ -110,8 +108,18 @@ def ensure_topic(extra: dict[str, object]) -> None:
         print(f"[topic] admin unavailable, skipping ensure ({type(e).__name__})", flush=True)
         return
     try:
+        if TOPIC in admin.list_topics():
+            print(f"[topic] {TOPIC!r} already exists", flush=True)
+            return
+
         admin.create_topics(
-            [NewTopic(TOPIC, num_partitions=NUM_PARTITIONS, replication_factor=REPLICATION_FACTOR)]
+            [
+                NewTopic(
+                    TOPIC,
+                    num_partitions=NUM_PARTITIONS,
+                    replication_factor=REPLICATION_FACTOR,
+                )
+            ]
         )
         print(f"[topic] created {TOPIC!r}", flush=True)
     except TopicAlreadyExistsError:

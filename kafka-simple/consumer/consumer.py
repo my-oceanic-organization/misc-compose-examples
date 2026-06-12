@@ -7,7 +7,7 @@ PaaS HTTP route without anyone having to ``docker logs`` or shell in.
 
 Configuration via env vars (defaults are compose-friendly):
   KAFKA_BOOTSTRAP_SERVERS  default: kafka:19092
-  KAFKA_TOPIC              default: demo
+  KAFKA_TOPIC              default: kafka-simple-demo-topic
   KAFKA_GROUP_ID           default: demo-group
   KAFKA_AUTO_OFFSET_RESET  default: earliest
   HTTP_PORT                default: 8000
@@ -39,7 +39,7 @@ from kafka import KafkaConsumer
 from kafka.errors import KafkaError
 
 BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP_SERVERS", "kafka:19092")
-TOPIC = os.environ.get("KAFKA_TOPIC", "demo")
+TOPIC = os.environ.get("KAFKA_TOPIC", "kafka-simple-demo-topic")
 GROUP_ID = os.environ.get("KAFKA_GROUP_ID", "demo-group")
 AUTO_OFFSET_RESET = os.environ.get("KAFKA_AUTO_OFFSET_RESET", "earliest")
 SECURITY_PROTOCOL = os.environ.get("KAFKA_SECURITY_PROTOCOL", "PLAINTEXT").upper()

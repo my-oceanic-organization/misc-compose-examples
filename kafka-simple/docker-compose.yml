@@ -36,8 +36,10 @@ services:
         condition: service_healthy
     environment:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:19092"
-      KAFKA_TOPIC: "demo"
+      KAFKA_TOPIC: "kafka-simple-demo-topic"
       PRODUCE_INTERVAL_SECONDS: "2"
+      KAFKA_NUM_PARTITIONS: "1"
+      KAFKA_REPLICATION_FACTOR: "1"
       # Local compose talks PLAINTEXT to the in-network broker. On a platform
       # that swaps in a managed Kafka service, this is overridden with SSL and
       # KAFKA_CA_CERT / KAFKA_ACCESS_CERT / KAFKA_ACCESS_KEY (inline PEM) are
@@ -57,7 +59,7 @@ services:
       - "8000:8000"
     environment:
       KAFKA_BOOTSTRAP_SERVERS: "kafka:19092"
-      KAFKA_TOPIC: "demo"
+      KAFKA_TOPIC: "kafka-simple-demo-topic"
       KAFKA_GROUP_ID: "demo-group"
       KAFKA_AUTO_OFFSET_RESET: "earliest"
       # See the producer service: PLAINTEXT locally, overridden to SSL (mTLS)
