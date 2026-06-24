@@ -2,7 +2,7 @@ FROM alpine:3.23
 
 RUN apk add --no-cache busybox-extras tini \
     && mkdir -p /www \
-    && echo "Hello from very-fast-app" > /www/index.html
+    && echo "Hello from very-fast-app 002" > /www/index.html
 
 EXPOSE 3000
 
