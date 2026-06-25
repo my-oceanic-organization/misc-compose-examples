@@ -2,9 +2,9 @@ FROM alpine:3.23
 
 RUN apk add --no-cache busybox-extras tini \
     && mkdir -p /www \
-    && echo "Hello from very-fast-app 008" > /www/index.html
+    && echo "Hello from very-fast-app 009" > /www/index.html
 
 EXPOSE 3000
 
 ENTRYPOINT ["tini", "--"]
-CMD ["sh", "-c", "echo 'very-fast-app: 008 starting httpd on :3000' && exec busybox-extras httpd -f -v -p 3000 -h /www"]
+CMD ["sh", "-c", "echo 'very-fast-app: 009 starting httpd on :3000' && exec busybox-extras httpd -f -v -p 3000 -h /www"]
