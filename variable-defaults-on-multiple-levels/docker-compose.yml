@@ -1,0 +1,34 @@
+services:
+  # 1. The app with nothing overridden here, so every value comes from the
+  #    Containerfile's ENV defaults and CMD expansions.
+  #
+  #    `image:` next to `build:` names the image that gets built rather than one
+  #    to pull, which is the only place a tag can still vary now that no ARG is
+  #    involved. Here it uses the `:-` form; the service below hardcodes it.
+  app:
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    image: "variable-defaults-app:${APP_TAG:-dev}"
+    ports:
+      - "${HOST_PORT:-18080}:${APP_PORT:-8080}"
+
+  # 2. The same image with every compose-side syntax layered on top:
+  #      a literal          hardcoded, nothing to resolve
+  #      ${VAR:-default}    falls back when unset or empty
+  #      ${VAR-default}     falls back only when unset
+  #      ${VAR:?message}    no fallback, and compose refuses to parse without it
+  #      ${VAR}             no fallback, silently becomes an empty string
+  app-with-overrides:
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    image: "variable-defaults-app-with-overrides:hardcoded"
+    environment:
+      GREETING: "hello from a hardcoded compose value"
+      LOG_LEVEL: "${LOG_LEVEL:-debug}"
+      REGION: "${REGION-eu-west-1}"
+      TENANT_ID: "${TENANT_ID:?tenant id has no default anywhere}"
+      TRACE_ID: "${TRACE_ID}"
+    ports:
+      - "${HOST_PORT_REQUIRED}:8080"

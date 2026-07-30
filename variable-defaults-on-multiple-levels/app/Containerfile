@@ -1,0 +1,42 @@
+# The one app in this example, carrying every env var style.
+#
+# There is deliberately not a single ARG here. Defaults are expressed only with
+# in-line syntax that survives into the running container: either an ENV the
+# caller can override, or a shell expansion in CMD.
+
+FROM alpine:3.23
+
+RUN apk add --no-cache busybox-extras tini \
+    && mkdir -p /www
+
+# Hardcoded. Nothing overrides this, on any level.
+ENV APP_NAME="variable-defaults-on-multiple-levels"
+
+# Defaults that a caller can override, including the port the server binds to.
+ENV APP_PORT=8080
+ENV GREETING="hello from a Containerfile ENV default"
+
+# Declared so the name is discoverable, but with no usable value.
+ENV TENANT_ID=""
+
+EXPOSE ${APP_PORT}
+
+ENTRYPOINT ["tini", "--"]
+
+# LOG_LEVEL, REGION and TRACE_ID are never declared above. Their only mention in
+# the whole image is the expansion below:
+#
+#   ${LOG_LEVEL:-info}    falls back when unset *or* empty
+#   ${REGION-eu-north-1}  falls back only when unset, so an empty value sticks
+#   $TRACE_ID             no fallback at all, empty until someone passes it
+CMD printf '%s\n' \
+      "APP_NAME=$APP_NAME" \
+      "APP_PORT=$APP_PORT" \
+      "GREETING=$GREETING" \
+      "TENANT_ID=$TENANT_ID" \
+      "LOG_LEVEL=${LOG_LEVEL:-info}" \
+      "REGION=${REGION-eu-north-1}" \
+      "TRACE_ID=$TRACE_ID" \
+      > /www/index.html \
+    && echo "$APP_NAME listening on :$APP_PORT" \
+    && exec busybox-extras httpd -f -v -p "$APP_PORT" -h /www
