@@ -40,3 +40,10 @@ podman compose up --build
 podman compose down
 ```
 
+## Publish to registry
+
+```bash
+podman login docker.io
+podman build --platform linux/amd64,linux/arm64 --manifest docker.io/YOURUSERNAME/very-fast-app:latest -f Containerfile .
+podman manifest push docker.io/YOURUSERNAME/very-fast-app:latest
+```
