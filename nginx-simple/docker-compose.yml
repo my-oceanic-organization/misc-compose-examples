@@ -1,0 +1,20 @@
+services:
+  web:
+    image: nginx:1.27-alpine
+    container_name: nginx-simple-web
+    ports:
+      # Host 8080 -> nginx's default 80, so no root is needed on the host.
+      - "8080:80"
+    volumes:
+      # The only thing this example does: hand nginx a directory of static
+      # files. Read-only, because nginx has no business writing to it.
+      # On SELinux hosts (Fedora, RHEL) append ",Z" -> "./site:/usr/share/nginx/html:ro,Z"
+      - ./site:/usr/share/nginx/html:ro
+    healthcheck:
+      # nginx:alpine has no curl, but busybox wget is built in.
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost/ || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
