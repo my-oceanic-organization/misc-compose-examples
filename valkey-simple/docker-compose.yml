@@ -1,5 +1,5 @@
 services:
-  valkey:
+  valkey-service:
     image: valkey/valkey:8-alpine
     container_name: valkey-simple-server
     ports:
@@ -11,7 +11,7 @@ services:
       retries: 10
       start_period: 5s
 
-  app:
+  my_app:
     build:
       context: ./app
       dockerfile: Containerfile
