@@ -17,12 +17,12 @@ services:
       dockerfile: Containerfile
     container_name: valkey-simple-app
     depends_on:
-      valkey:
+      valkey-service:
         condition: service_healthy
     ports:
       - "8000:8000"
     environment:
-      VALKEY_URL: "valkey://valkey:6379"
+      VALKEY_URL: "valkey://valkey-service:6379"
       CACHE_TTL_SECONDS: "10"
       TICK_INTERVAL_SECONDS: "1"
       SLOW_COMPUTE_SECONDS: "2"
