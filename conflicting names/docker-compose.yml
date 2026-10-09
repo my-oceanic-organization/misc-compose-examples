@@ -1,6 +1,7 @@
 services:
   my_service:
     image: postgres:17-alpine
+    container_name: conflicting-names-my_service
     ports:
       - "5432:5432"
     environment:
@@ -16,6 +17,7 @@ services:
 
   my-service:
     image: valkey/valkey:8-alpine
+    container_name: conflicting-names-my-service
     ports:
       - "6379:6379"
     healthcheck:
@@ -26,42 +28,52 @@ services:
       start_period: 5s
 
   app_underscore:
-    image: adminer:5
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: conflicting-names-app_underscore
     depends_on:
       my_service:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8000:8000"
     environment:
-      ADMINER_DEFAULT_SERVER: my_service
+      APP_NAME: "app_underscore"
+      PG_URL: "postgresql://demo:demo@my_service:5432/demo"
+      HTTP_PORT: "8000"
+    restart: on-failure
 
   app-hyphen:
-    image: rediscommander/redis-commander:latest
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: conflicting-names-app-hyphen
     depends_on:
       my-service:
         condition: service_healthy
     ports:
-      - "8081:8081"
+      - "8001:8000"
     environment:
-      REDIS_HOSTS: "local:my-service:6379"
+      APP_NAME: "app-hyphen"
+      VALKEY_URL: "valkey://my-service:6379"
+      HTTP_PORT: "8000"
+    restart: on-failure
 
   app_both:
-    image: grafana/grafana:11
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: conflicting-names-app_both
     depends_on:
       my_service:
         condition: service_healthy
       my-service:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      - "8002:8000"
     environment:
-      GF_SECURITY_ADMIN_USER: "admin"
-      GF_SECURITY_ADMIN_PASSWORD: "admin"
-      GF_DATABASE_TYPE: "postgres"
-      GF_DATABASE_HOST: "my_service:5432"
-      GF_DATABASE_NAME: "demo"
-      GF_DATABASE_USER: "demo"
-      GF_DATABASE_PASSWORD: "demo"
-      GF_DATABASE_SSL_MODE: "disable"
-      GF_REMOTE_CACHE_TYPE: "redis"
-      GF_REMOTE_CACHE_CONNSTR: "network=tcp,addr=my-service:6379,pool_size=100,db=0,ssl=false"
+      APP_NAME: "app_both"
+      PG_URL: "postgresql://demo:demo@my_service:5432/demo"
+      VALKEY_URL: "valkey://my-service:6379"
+      HTTP_PORT: "8000"
+    restart: on-failure
