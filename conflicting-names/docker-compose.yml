@@ -77,3 +77,4 @@ services:
       VALKEY_URL: "valkey://my-service:6379"
       HTTP_PORT: "8000"
     restart: on-failure
+# ADDING RANDOM STUFF
