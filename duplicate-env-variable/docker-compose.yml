@@ -3,21 +3,35 @@ services:
   #    The map form would be invalid YAML (duplicate key); the list form is
   #    accepted and the last entry wins.
   duplicate-in-list:
-    image: busybox:1.36
-    command: ["sh", "-c", "env | grep -E 'GREETING|LOG_LEVEL' && sleep 3600"]
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: duplicate-env-variable-in-list
+    ports:
+      - "8000:8000"
     environment:
+      - APP_NAME=duplicate-in-list
+      - HTTP_PORT=8000
       - GREETING=first
       - LOG_LEVEL=debug
       - GREETING=second
       - LOG_LEVEL=warn
+    restart: on-failure
 
   # 2. The same variable defined in both `env_file` and `environment`.
   #    `environment` takes precedence over `env_file`.
   duplicate-across-env-file:
-    image: busybox:1.36
-    command: ["sh", "-c", "env | grep -E 'LOG_LEVEL|REGION' && sleep 3600"]
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: duplicate-env-variable-across-env-file
+    ports:
+      - "8001:8000"
     env_file:
       - .env.app
     environment:
+      APP_NAME: "duplicate-across-env-file"
+      HTTP_PORT: "8000"
       LOG_LEVEL: "debug"
       REGION: "eu-west-1"
+    restart: on-failure
