@@ -1,0 +1,10 @@
+FROM alpine:3.23
+
+RUN apk add --no-cache tini
+
+COPY rainbow.sh /usr/local/bin/rainbow.sh
+RUN chmod +x /usr/local/bin/rainbow.sh \
+    && /usr/local/bin/rainbow.sh --once
+
+ENTRYPOINT ["tini", "--"]
+CMD ["/usr/local/bin/rainbow.sh"]

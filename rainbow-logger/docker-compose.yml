@@ -1,0 +1,7 @@
+services:
+  rainbow-logger:
+    build:
+      context: .
+      dockerfile: Containerfile
+    environment:
+      INTERVAL: "2"
