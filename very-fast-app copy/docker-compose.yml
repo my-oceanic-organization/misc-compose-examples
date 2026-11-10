@@ -1,0 +1,7 @@
+services:
+  very-fast-app:
+    build:
+      context: .
+      dockerfile: Containerfile
+    ports:
+      - "3000:3000"
