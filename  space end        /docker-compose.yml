@@ -1,0 +1,79 @@
+services:
+  my_service:
+    image: postgres:17-alpine
+    container_name: conflicting-names-my_service
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: "demo"
+      POSTGRES_USER: "demo"
+      POSTGRES_PASSWORD: "demo"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U demo -d demo >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  my-service:
+    image: valkey/valkey:8-alpine
+    container_name: conflicting-names-my-service
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  app_underscore:
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: conflicting-names-app_underscore
+    depends_on:
+      my_service:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: "app_underscore"
+      PG_URL: "postgresql://demo:demo@my_service:5432/demo"
+      HTTP_PORT: "8000"
+    restart: on-failure
+
+  app-hyphen:
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: conflicting-names-app-hyphen
+    depends_on:
+      my-service:
+        condition: service_healthy
+    ports:
+      - "8001:8000"
+    environment:
+      APP_NAME: "app-hyphen"
+      VALKEY_URL: "valkey://my-service:6379"
+      HTTP_PORT: "8000"
+    restart: on-failure
+
+  app_both:
+    build:
+      context: ./app
+      dockerfile: Containerfile
+    container_name: conflicting-names-app_both
+    depends_on:
+      my_service:
+        condition: service_healthy
+      my-service:
+        condition: service_healthy
+    ports:
+      - "8002:8000"
+    environment:
+      APP_NAME: "app_both"
+      PG_URL: "postgresql://demo:demo@my_service:5432/demo"
+      VALKEY_URL: "valkey://my-service:6379"
+      HTTP_PORT: "8000"
+    restart: on-failure
