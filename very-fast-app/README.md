@@ -24,7 +24,7 @@ In another terminal:
 
 ```bash
 curl localhost:3000
-# Hello from very-fast-app
+# Hello from very-fast-app: 42 hamsters just sprinted through the server!
 ```
 
 Ctrl-C in the `podman run` terminal cleanly stops the container.
