@@ -3,11 +3,13 @@ FROM alpine:3.23
 RUN apk add --no-cache tini
 
 ARG LOG_LINES=2400
+# Seconds to sleep after every 10 lines
+ARG LOG_DELAY=0.15
 
 COPY rainbow.sh /usr/local/bin/rainbow.sh
 RUN chmod +x /usr/local/bin/rainbow.sh \
     && /usr/local/bin/rainbow.sh --once \
-    && /usr/local/bin/rainbow.sh --numbered "$LOG_LINES"
+    && /usr/local/bin/rainbow.sh --numbered "$LOG_LINES" "$LOG_DELAY"
 
 ENTRYPOINT ["tini", "--"]
 CMD ["/usr/local/bin/rainbow.sh"]

@@ -52,27 +52,44 @@ print_256_gradient() {
 # so any page offset can be checked against the line number and the shape.
 print_numbered() {
     total="$1"
+    delay="$2"
     glyphs=".:*#@%"
+    last_frame=$(((total - 1) / 240 + 1))
     n=1
     while [ "$n" -le "$total" ]; do
         k=$(((n - 1) % 240))
         frame=$(((n - 1) / 240 + 1))
         if [ "$k" -lt 120 ]; then w=$((k / 3)); else w=$(((239 - k) / 3)); fi
-        g=$(printf '%s' "$glyphs" | cut -c$(((frame - 1) % 6 + 1)))
-        body=$(printf "%$((w * 2 + 1))s" "" | tr ' ' "$g")
+        if [ "$frame" -eq "$last_frame" ]; then
+            body=""
+            j=0
+            while [ "$j" -le $((w * 2)) ]; do
+                set -- 31 33 32 36 34 35 91 93 92 96 94 95
+                shift $(((j + k) % 12))
+                case $((j % 4)) in
+                    0) g='*' ;; 1) g='+' ;; 2) g='o' ;; *) g='+' ;;
+                esac
+                body="$body$E[$1m$g"
+                j=$((j + 1))
+            done
+        else
+            g=$(printf '%s' "$glyphs" | cut -c$(((frame - 1) % 6 + 1)))
+            body=$(printf "%$((w * 2 + 1))s" "" | tr ' ' "$g")
+        fi
         set -- 31 33 32 36 34 35 91 93 92 96 94 95
         shift $((k / 20))
         color=$1
         tick=""
         if [ $((n % 10)) -eq 0 ]; then tick=" <- $n"; fi
-        printf '%s[%sm%06d f%03d r%03d |%*s%s[1m%s%s[22m%*s|%s%s[0m\n' \
-            "$E" "$color" "$n" "$frame" "$((k + 1))" $((40 - w)) "" "$E" "$body" "$E" $((40 - w)) "" "$tick" "$E"
+        printf '%s[%sm%06d f%03d r%03d |%*s%s[1m%s%s[22;%sm%*s|%s%s[0m\n' \
+            "$E" "$color" "$n" "$frame" "$((k + 1))" $((40 - w)) "" "$E" "$body" "$E" "$color" $((40 - w)) "" "$tick" "$E"
+        if [ $((n % 10)) -eq 0 ] && [ -n "$delay" ]; then sleep "$delay"; fi
         n=$((n + 1))
     done
 }
 
 if [ "$1" = "--numbered" ]; then
-    print_numbered "${2:-2400}"
+    print_numbered "${2:-2400}" "$3"
     exit 0
 fi
 
