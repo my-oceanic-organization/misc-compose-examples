@@ -2,9 +2,12 @@ FROM alpine:3.23
 
 RUN apk add --no-cache tini
 
+ARG LOG_LINES=2400
+
 COPY rainbow.sh /usr/local/bin/rainbow.sh
 RUN chmod +x /usr/local/bin/rainbow.sh \
-    && /usr/local/bin/rainbow.sh --once
+    && /usr/local/bin/rainbow.sh --once \
+    && /usr/local/bin/rainbow.sh --numbered "$LOG_LINES"
 
 ENTRYPOINT ["tini", "--"]
 CMD ["/usr/local/bin/rainbow.sh"]
