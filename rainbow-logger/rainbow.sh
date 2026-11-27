@@ -48,21 +48,6 @@ print_256_gradient() {
     printf '%s%s[0m\n' "$line" "$E"
 }
 
-# Maps hue position 0..29 onto the color cube hue wheel used above.
-hue_color() {
-    seg=$(($1 / 5))
-    i=$(($1 % 5))
-    case "$seg" in
-        0) r=5 g=$i b=0 ;;
-        1) r=$((5 - i)) g=5 b=0 ;;
-        2) r=0 g=5 b=$i ;;
-        3) r=0 g=$((5 - i)) b=5 ;;
-        4) r=$i g=0 b=5 ;;
-        *) r=5 g=0 b=$((5 - i)) ;;
-    esac
-    echo $((16 + 36 * r + 6 * g + b))
-}
-
 # Numbered lines drawing a rainbow diamond that restarts every 240 lines,
 # so any page offset can be checked against the line number and the shape.
 print_numbered() {
@@ -75,11 +60,13 @@ print_numbered() {
         if [ "$k" -lt 120 ]; then w=$((k / 3)); else w=$(((239 - k) / 3)); fi
         g=$(printf '%s' "$glyphs" | cut -c$(((frame - 1) % 6 + 1)))
         body=$(printf "%$((w * 2 + 1))s" "" | tr ' ' "$g")
-        color=$(hue_color $((k * 30 / 240)))
+        set -- 31 33 32 36 34 35 91 93 92 96 94 95
+        shift $((k / 20))
+        color=$1
         tick=""
         if [ $((n % 10)) -eq 0 ]; then tick=" <- $n"; fi
-        printf '%06d frame %03d row %03d/240 |%*s%s[38;5;%sm%s%s[0m%*s|%s\n' \
-            "$n" "$frame" "$((k + 1))" $((40 - w)) "" "$E" "$color" "$body" "$E" $((40 - w)) "" "$tick"
+        printf '%s[%sm%06d f%03d r%03d |%*s%s[1m%s%s[22m%*s|%s%s[0m\n' \
+            "$E" "$color" "$n" "$frame" "$((k + 1))" $((40 - w)) "" "$E" "$body" "$E" $((40 - w)) "" "$tick" "$E"
         n=$((n + 1))
     done
 }
